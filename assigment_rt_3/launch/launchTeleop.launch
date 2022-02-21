@@ -1,0 +1,14 @@
+<launch>
+    <!-- setting up ROS server parameters -->
+    <!-- <arg name="robotAsistance" default= "1"/>
+    <arg name="pathWait" default= "60"/>
+    <param name="robotAsistance" value="$(arg des_x)" />
+    <param name="pathWait" value="$(arg des_y)" /> -->
+
+    <!-- starting ROS package nodes -->
+    <!-- <node pkg="assigment_rt_3" type="master_Robot.py" name="master_Robotxxx" output="screen"/> -->
+    <!-- <node pkg="assigment_rt_3" type="UI_Robot.py" name="UI_Robot" output="screen"/> -->
+    <remap from="cmd_vel" to="remmaped_cmd_vel"/>
+    <node name="teleop_twist_keyboard" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" launch-prefix="konsole -e" output="screen"/>
+
+</launch>

@@ -1,0 +1,6 @@
+[submodule "second_assignment"]
+	path = second_assignment
+	url = https://github.com/CarmineD8/second_assignment
+[submodule "final_assignment"]
+	path = final_assignment
+	url = https://github.com/CarmineD8/final_assignment.git
