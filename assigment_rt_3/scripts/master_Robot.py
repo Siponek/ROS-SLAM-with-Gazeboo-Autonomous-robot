@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from platform import system
 import rospy
 # # *for string, bool, empty
 from std_msgs.msg import Float32MultiArray, Bool
@@ -12,6 +13,7 @@ from geometry_msgs.msg import Twist
 from debugpy import listen
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import actionlib
+from os import system
 
 # * Program has to do three main things:
 # * - 1) autonomously reach a x,y coordinate inserted by the user
@@ -48,10 +50,17 @@ regions = {
     'fleft':    0,
     'left':     0,
 }
-globalVelocity = None
-velocityToSend = None
+globalVelocity = Twist()
+velocityToSend = Twist()
+remmapedListner = None
 pubToDrive = None
 pubFromAssisted = None
+
+
+def print_menu():
+    system('clear')
+    for key in menu_options.keys():
+        print(key, '--', menu_options[key])
 
 
 def autoGoalDriveCallback(msg):
@@ -59,12 +68,25 @@ def autoGoalDriveCallback(msg):
     print("This is the recievied message : ", msg.data)
     movebase_client(msg.data[0], msg.data[1])
     print("Action client returned correctly")
+    menu_options = {
+        1: 'Autonomously reach a x,y coordinate inserted by the user',
+        2: 'Drive the robot with the keyboard',
+        3: 'Drive the robot with assistance to avoid collisions',
+        4: 'Exit',
+        5: 'TIME TO STOP',
+    }
+    print_menu()
+
+
+def makeDrivingGreatAgain(msg):
+    global globalVelocity
+    globalVelocity = msg
 
 
 def manualDriveCallback(msg):
     global velocityToSend
-    print("manualDriveCallback running!")
     if msg == True:
+        print("manualDriveCallback running!")
         velocityToSend = globalVelocity
         pubToDrive.publish(velocityToSend)
 
@@ -72,8 +94,8 @@ def manualDriveCallback(msg):
 def assistedDriveCallback(msg):
     # TODO algo for avoiding obstacles
     global velocityToSend
-    print("assistedDriveCallback running!")
     if msg == True:
+        print("assistedDriveCallback running!")
         velocityToSend = globalVelocity
         pubToDrive.publish(velocityToSend)
 
@@ -86,12 +108,6 @@ def assistedDriveCallback(msg):
 #         'fleft':  min(min(msg.ranges[432:575]), 10),
 #         'left':   min(min(msg.ranges[576:719]), 10),
 #     }
-
-
-def makeDrivingGreatAgain(msg):
-    global globalVelocity
-    globalVelocity = Twist()
-    globalVelocity = msg
 
 
 def movebase_client(xUI, yUI):

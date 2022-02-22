@@ -80,11 +80,11 @@ if __name__ == '__main__':
     global pub, active_
     rospy.init_node('UI_Robot')
     pubFromUIFLOAT = rospy.Publisher(
-        "autonomousCoords", std_msgs.msg.Float32MultiArray)
+        "autonomousCoords", std_msgs.msg.Float32MultiArray, queue_size=1)
     pubSignalManual = rospy.Publisher(
-        "manualDriveCheck", std_msgs.msg.Bool)
+        "manualDriveCheck", std_msgs.msg.Bool, queue_size=1)
     pubSignalAssisted = rospy.Publisher(
-        "assistedDriveCheck", std_msgs.msg.Bool)
+        "assistedDriveCheck", std_msgs.msg.Bool, queue_size=1)
 
     while(True):
         print_menu()
