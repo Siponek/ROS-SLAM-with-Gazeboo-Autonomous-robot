@@ -1,9 +1,9 @@
 <launch>
     <!-- setting up ROS server parameters -->
-    <!-- <arg name="robotAsistance" default= "1"/>
+    <arg name="robotAsistance" default= "1.0"/>
     <arg name="pathWait" default= "60"/>
-    <param name="robotAsistance" value="$(arg des_x)" />
-    <param name="pathWait" value="$(arg des_y)" /> -->
+    <param name="robotAsistanceParam" value="$(arg robotAsistance)" />
+    <param name="pathWaitParam" value="$(arg pathWait)" />
 
     <!-- starting ROS package nodes -->
     <node pkg="assigment_rt_3" type="master_Robot.py" name="master_Robotxxx" output="screen"/>
