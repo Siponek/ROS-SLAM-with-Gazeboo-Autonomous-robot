@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import statistics
 import rospy
 # # *for string, bool, empty
 from std_msgs.msg import Float32MultiArray, Bool
@@ -11,6 +12,7 @@ import os
 import curses
 import sys
 import builtins
+from statistics import mean
 
 # * Program has to do three main things:
 # * - 1) autonomously reach a x,y coordinate inserted by the user
@@ -47,6 +49,9 @@ regions = {
     'fleft':    0,
     'left':     0,
 }
+
+meanOfRanges = None
+
 globalVelocity = Twist()
 velocityToSend = Twist()
 
@@ -142,19 +147,23 @@ def assistedDriveCallback(msg):
     # TODO algo for avoiding obstacles
     global regions
     global globalVelocity
+    global velocityToSend
+    global meanOfRanges
+
     if (msg.data == True):
         prYellow("Master:: assistedDriveCallback running!")
         prYellow(
             f"DriveAssist:: threshhold for warnings ->{assitanceThreshold}!")
         time.sleep(2)
     while (msg.data == True):
+        velocityToSend = globalVelocity
         print_menu()
         prYellow("DriveAssist:: drive assist engaged!")
-        # velocityToSend = globalVelocity
         if (regions['right'] <= 2*assitanceThreshold):
             print("DriveAssist:: Obstacle detected on the right side!")
             if (regions['right'] <= assitanceThreshold):
                 print(f"\033[91mDistance-> {regions['right']} \033[00m")
+                # velocityToSend.angular.z = -1.0 * assitanceThreshold
             else:
                 print(f"\033[95mDistance-> {regions['right']} \033[00m")
 
@@ -162,6 +171,8 @@ def assistedDriveCallback(msg):
             print("DriveAssist:: Obstacle detected on the front-right side!")
             if (regions['fright'] <= assitanceThreshold):
                 print(f"\033[91mDistance-> {regions['fright']} \033[00m")
+                # velocityToSend.angular.z = -0.5 * assitanceThreshold
+
             else:
                 print(f"\033[95mDistance-> {regions['fright']} \033[00m")
 
@@ -169,6 +180,8 @@ def assistedDriveCallback(msg):
             print("DriveAssist:: Obstacle detected on the front side!")
             if (regions['front'] <= assitanceThreshold):
                 print(f"\033[91mDistance-> {regions['front']} \033[00m")
+                # velocityToSend.linear.x = -0.5 * assitanceThreshold
+
             else:
                 print(f"\033[95mDistance-> {regions['front']} \033[00m")
 
@@ -176,6 +189,8 @@ def assistedDriveCallback(msg):
             print("DriveAssist:: Obstacle detected on the front-left side!")
             if (regions['fleft'] <= assitanceThreshold):
                 print(f"\033[91mDistance-> {regions['fleft']} \033[00m")
+                # velocityToSend.angular.z = 0.5 * assitanceThreshold
+
             else:
                 print(f"\033[95mDistance-> {regions['fleft']} \033[00m")
 
@@ -183,10 +198,40 @@ def assistedDriveCallback(msg):
             print("DriveAssist:: Obstacle detected on the left side!")
             if (regions['left'] <= assitanceThreshold):
                 print(f"\033[91mDistance-> {regions['left']} \033[00m")
+                # velocityToSend.angular.z = 1.0 * assitanceThreshold
+
             else:
                 print(f"\033[95mDistance-> {regions['left']} \033[00m")
 
-        pubToDrive.publish(globalVelocity)
+        if (regions['right'] <= assitanceThreshold):
+            velocityToSend.angular.z = 1.0 * \
+                assitanceThreshold * (1/regions["right"])
+
+        elif (regions['fright'] <= assitanceThreshold):
+            velocityToSend.angular.z = 0.75 * \
+                assitanceThreshold * (1/regions["fright"])
+
+        elif (regions['front'] <= assitanceThreshold):
+            if (regions['fright'] + regions['right'] + regions['front'] <= regions['fleft'] + regions['left'] + regions['front']):
+                velocityToSend.angular.z = velocityToSend.angular.z * \
+                    (-1) * (1/regions['front'])
+            else:
+                velocityToSend.angular.z = velocityToSend.angular.z * \
+                    (1) * (1/regions['front'])
+
+            if (regions['front'] <= 0.5):
+                velocityToSend.linear.x = velocityToSend.linear.x / \
+                    (1/regions['front'])
+
+        elif (regions['fleft'] <= assitanceThreshold):
+            velocityToSend.angular.z = -0.75 * \
+                assitanceThreshold * (1/regions["fleft"])
+
+        elif (regions['left'] <= assitanceThreshold):
+            velocityToSend.angular.z = -1.0 * \
+                assitanceThreshold * (1/regions["left"])
+
+        pubToDrive.publish(velocityToSend)
         # prYellow("Master:: assistedDriveCallback publlished!")
     prYellow("Master:: assitedDriveCallback stopped!")
 
@@ -197,12 +242,20 @@ def assistedDriveCallback(msg):
 
 def clbk_laser(msg):
     global regions
+    # global meanOfRanges
+    # regions = {
+    #     'right':  min(min(msg.ranges[0:143]), 5),
+    #     'fright': min(min(msg.ranges[144:287]), 5),
+    #     'front':  min(min(msg.ranges[288:431]), 5),
+    #     'fleft':  min(min(msg.ranges[432:575]), 5),
+    #     'left':   min(min(msg.ranges[576:719]), 5),
+    # }
     regions = {
-        'right':  min(msg.ranges[0:143]),
-        'fright': min(msg.ranges[144:287]),
-        'front':  min(msg.ranges[288:431]),
-        'fleft':  min(msg.ranges[432:575]),
-        'left':   min(msg.ranges[576:719]),
+        'right':  min(mean(msg.ranges[0:143]), 5),
+        'fright': min(mean(msg.ranges[144:287]), 5),
+        'front':  min(mean(msg.ranges[288:431]), 5),
+        'fleft':  min(mean(msg.ranges[432:575]), 5),
+        'left':   min(mean(msg.ranges[576:719]), 5),
     }
     # print("These are the regions:", regions)
 
