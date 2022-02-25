@@ -22,6 +22,10 @@ sudo apt-get install ros-noetic-navigation
 ```
 The branch of all these repositores is Noetic.
 ### Execution
+Since this is a python package run refresh ros packages:
+```
+rospack profile
+```
 To launch the program run the simulation enviroment
 ```
 roslaunch final_assignment simulation_gmapping.launch
