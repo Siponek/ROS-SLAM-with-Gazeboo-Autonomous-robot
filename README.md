@@ -1,11 +1,12 @@
 # Research Track 1 Assigment 3
 # Drunk and blind SLAM driving robot
+Università di Genova
 
 ## Intro
-The third assignment of the "Research Track 1" course, for the Robotics Engineering degree, Università di Genova. The goal is to have an robot that uses SLAM algorithm to move around the map in three diffrent modes.
+The third assignment of the Research Track 1 course. The goal is to have an robot that uses SLAM algorithm to move around the map in three diffrent modes.
 
 
-## Running the program
+## Get started
 ### Downloading the packages and installing
 The simulator requires ROS. Clone this repository into your ROS workspace's src/ folder.
 ```
@@ -21,7 +22,7 @@ git clone https://www.github.com/CarmineD8/slam_gmapping
 sudo apt-get install ros-noetic-navigation
 ```
 The branch of all these repositores is Noetic.
-### Execution
+### Running/walking
 Since this is a python package run refresh ros packages:
 ```
 rospack profile
