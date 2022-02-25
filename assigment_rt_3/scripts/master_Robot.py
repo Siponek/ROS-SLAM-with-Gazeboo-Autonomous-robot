@@ -13,6 +13,7 @@ import curses
 import sys
 import builtins
 from statistics import mean
+from math import ceil
 
 # * Program has to do three main things:
 # * - 1) autonomously reach a x,y coordinate inserted by the user
@@ -34,14 +35,15 @@ from statistics import mean
 # * - should not go forward if there is an obstacle in the front
 # * - should not turn left/right if there are obstacles on the
 # * left/right
-# TODO
+
 # TODO- Main as UI that gets input and sends it to move_base/goal   DONE
 # TODO (implement UI after)
 # TODO- Main that rephrases data form teleop_twist_keyboard         DONE
 # TODO  to move_base (remap teleop topic and send it to move_base)  DONE
 # TODO- After implementing teleop remap make the function           DONE
-# TODO consider obstacles form laser scanner and MAP
+# TODO consider obstacles form laser scanner and MAP                DONE
 
+# ? Global variables for phrasing between functions
 regions = {
     'right':    0,
     'fright':   0,
@@ -55,21 +57,16 @@ meanOfRanges = None
 globalVelocity = Twist()
 velocityToSend = Twist()
 
-# globalVelocity.linear.x = 0
-# globalVelocity.linear.y = 0
-# globalVelocity.linear.z = 0
-# globalVelocity.angular.x = 0
-# globalVelocity.angular.y = 0
-# globalVelocity.angular.z = 0
-
 remmapedListner = None
 pubToDrive = None
 pubFromAssisted = None
-# ? Params
+
+# ? Params from ROS server
 assitanceThreshold = None
 timeoutROS = None
+timeoutParam = None
 
-r = None
+
 menu_options = {
     1: 'Autonomously reach a x,y coordinate inserted by the user',
     2: 'Drive the robot with the keyboard',
@@ -77,6 +74,8 @@ menu_options = {
     4: 'Exit',
     5: "IT'S TIME TO STOP",
 }
+
+# ? coloring :)
 
 
 def prRed(skk): print("\033[91m {}\033[00m" .format(skk))
@@ -89,49 +88,26 @@ def prLightGray(skk): print("\033[97m {}\033[00m" .format(skk))
 def prBlack(skk): print("\033[98m {}\033[00m" .format(skk))
 
 
-def print_menu():
-    # TODO drawing UI one at the time?
-    # clear_screen_seq = b''
-
-    # if sys.stdout.isatty():
-    #     curses.setupterm()
-    #     clear_screen_seq = curses.tigetstr('clear')
-    # print("\033c")
-    # print("\033c", end="")
-    os.system('clear')
-    print("\033[96m")
-    for key in menu_options.keys():
-        # builtins.print(key, '--', menu_options[key])
-        print(key, '--', menu_options[key])
-    print("\033[00m")
-    # time.sleep(0.1)
-
-    # scrn = curses.initscr()
-    # # scrn.erase()
-    # scrn.erase()
-    # scrn.refresh()
-    # curses.endwin()
-
-
+# ? callback for autonomous drive to a point - > calling action
 def autoGoalDriveCallback(msg):
     prYellow("Master:: autoGoalDriveCallback running!")
     print("\033[93m This is the recievied message : ", msg.data, "\033[00m")
     movebase_client(msg.data[0], msg.data[1])
     prYellow("Action client returned correctly")
-    print_menu()
+    # print_menu()
 
 
+# ? callback for getting input form TeleopKey
 def makeDrivingGreatAgain(msg):
     prLightPurple("\nMaster:: detected teleop input")
     global globalVelocity
     globalVelocity.linear = msg.linear
     globalVelocity.angular = msg.angular
-    r.sleep()
-
-    # print("This is the message", msg)
-    # print("This is the globalbelocity", globalVelocity)
+    globalVelocity.angular.z = (globalVelocity.angular.z)
+    timeoutParam.sleep()
 
 
+# ? callback function for manual steering - getting input on remmaped_cmd_vel -> cmd_vel
 def manualDriveCallback(msg):
     global globalVelocity
     if (msg.data == True):
@@ -139,12 +115,12 @@ def manualDriveCallback(msg):
         prCyan("Control of the robot is done through seperate console 'TeleopKey!'")
     while(msg.data == True):
         pubToDrive.publish(globalVelocity)
-        r.sleep()
+        # timeoutParam.sleep()
     prYellow("Master:: manualDriveCallback stopped!")
 
 
+# ? algorythm for avoiding obstacles while manual driving
 def assistedDriveCallback(msg):
-    # TODO algo for avoiding obstacles
     global regions
     global globalVelocity
     global velocityToSend
@@ -155,54 +131,56 @@ def assistedDriveCallback(msg):
         prYellow(
             f"DriveAssist:: threshhold for warnings ->{assitanceThreshold}!")
         time.sleep(2)
+
     while (msg.data == True):
+        os.system('clear')
         velocityToSend = globalVelocity
-        print_menu()
         prYellow("DriveAssist:: drive assist engaged!")
+
+        # ? prettier printing for warnings
         if (regions['right'] <= 2*assitanceThreshold):
             print("DriveAssist:: Obstacle detected on the right side!")
+
             if (regions['right'] <= assitanceThreshold):
                 print(f"\033[91mDistance-> {regions['right']} \033[00m")
-                # velocityToSend.angular.z = -1.0 * assitanceThreshold
             else:
                 print(f"\033[95mDistance-> {regions['right']} \033[00m")
 
         if (regions['fright'] <= 2*assitanceThreshold):
             print("DriveAssist:: Obstacle detected on the front-right side!")
+
             if (regions['fright'] <= assitanceThreshold):
                 print(f"\033[91mDistance-> {regions['fright']} \033[00m")
-                # velocityToSend.angular.z = -0.5 * assitanceThreshold
-
             else:
                 print(f"\033[95mDistance-> {regions['fright']} \033[00m")
 
         if (regions['front'] <= 2*assitanceThreshold):
             print("DriveAssist:: Obstacle detected on the front side!")
+
             if (regions['front'] <= assitanceThreshold):
                 print(f"\033[91mDistance-> {regions['front']} \033[00m")
-                # velocityToSend.linear.x = -0.5 * assitanceThreshold
-
             else:
                 print(f"\033[95mDistance-> {regions['front']} \033[00m")
 
         if (regions['fleft'] <= 2*assitanceThreshold):
             print("DriveAssist:: Obstacle detected on the front-left side!")
+
             if (regions['fleft'] <= assitanceThreshold):
                 print(f"\033[91mDistance-> {regions['fleft']} \033[00m")
-                # velocityToSend.angular.z = 0.5 * assitanceThreshold
-
             else:
                 print(f"\033[95mDistance-> {regions['fleft']} \033[00m")
 
         if (regions['left'] <= 2*assitanceThreshold):
             print("DriveAssist:: Obstacle detected on the left side!")
+
             if (regions['left'] <= assitanceThreshold):
                 print(f"\033[91mDistance-> {regions['left']} \033[00m")
-                # velocityToSend.angular.z = 1.0 * assitanceThreshold
-
             else:
                 print(f"\033[95mDistance-> {regions['left']} \033[00m")
 
+        # ? Algorythm that forces robot to turn at certain distance [assitanceThreshold] is by default 1.
+        # ? The closer robot is to an obstacle the stronger the turning/slowwing effect (1/x funtion scalling).
+        # ? Due to physics simulation in Gazeboo, too much speed will result in fliping.
         if (regions['right'] <= assitanceThreshold):
             velocityToSend.angular.z = 1.0 * \
                 assitanceThreshold * (1/regions["right"])
@@ -214,13 +192,13 @@ def assistedDriveCallback(msg):
         elif (regions['front'] <= assitanceThreshold):
             if (regions['fright'] + regions['right'] + regions['front'] <= regions['fleft'] + regions['left'] + regions['front']):
                 velocityToSend.angular.z = velocityToSend.angular.z * \
-                    (-1) * (1/regions['front'])
+                    (-1/regions['front'])
             else:
                 velocityToSend.angular.z = velocityToSend.angular.z * \
-                    (1) * (1/regions['front'])
+                    (1/regions['front'])
 
             if (regions['front'] <= 0.5):
-                velocityToSend.linear.x = velocityToSend.linear.x / \
+                velocityToSend.linear.x = velocityToSend.linear.x * \
                     (1/regions['front'])
 
         elif (regions['fleft'] <= assitanceThreshold):
@@ -232,34 +210,25 @@ def assistedDriveCallback(msg):
                 assitanceThreshold * (1/regions["left"])
 
         pubToDrive.publish(velocityToSend)
-        # prYellow("Master:: assistedDriveCallback publlished!")
+
     prYellow("Master:: assitedDriveCallback stopped!")
-
-    r.sleep()
-
-# Function for finding the closest object on 5 sectors of the scanners
+    timeoutParam.sleep()
 
 
+# ? Function for finding the closest object on 5 sectors of the scanners
 def clbk_laser(msg):
     global regions
-    # global meanOfRanges
-    # regions = {
-    #     'right':  min(min(msg.ranges[0:143]), 5),
-    #     'fright': min(min(msg.ranges[144:287]), 5),
-    #     'front':  min(min(msg.ranges[288:431]), 5),
-    #     'fleft':  min(min(msg.ranges[432:575]), 5),
-    #     'left':   min(min(msg.ranges[576:719]), 5),
-    # }
     regions = {
-        'right':  min(mean(msg.ranges[0:143]), 5),
-        'fright': min(mean(msg.ranges[144:287]), 5),
-        'front':  min(mean(msg.ranges[288:431]), 5),
-        'fleft':  min(mean(msg.ranges[432:575]), 5),
-        'left':   min(mean(msg.ranges[576:719]), 5),
+        'right':  round(min(mean(msg.ranges[0:143]), 5), 5),
+        'fright': round(min(mean(msg.ranges[144:287]), 5), 5),
+        'front':  round(min(mean(msg.ranges[288:431]), 5), 5),
+        'fleft':  round(min(mean(msg.ranges[432:575]), 5), 5),
+        'left':   round(min(mean(msg.ranges[576:719]), 5), 5),
     }
     # print("These are the regions:", regions)
 
 
+# ? Functions for communicating with Ui/ drive to point
 def movebase_client(xUI, yUI):
     prGreen("Master::running move_base_Client")
     client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
@@ -271,10 +240,10 @@ def movebase_client(xUI, yUI):
     goal.target_pose.pose.orientation.w = 1.0
     goal.target_pose.pose.position.x = xUI
     goal.target_pose.pose.position.y = yUI
-
     client.send_goal(goal)
     prPurple("Waiting for the action client result")
-    wait = client.wait_for_result(timeoutROS)
+    wait = client.wait_for_result()
+
     if not wait:
         rospy.logerr("Action server not available!")
         rospy.signal_shutdown("Action server not available!")
@@ -283,12 +252,11 @@ def movebase_client(xUI, yUI):
         return client.get_result()
 
 
-# * The main funtion
+# ? The main funtion - creating ROS subscribe/publish architecture
 if __name__ == '__main__':
     try:
         rospy.init_node('master_Robot')
-        r = rospy.Rate(10)  # 10hz
-        # prGreen("Master::THIS IS THE TEST AFTER SUBS")
+        timeoutParam = rospy.Rate(10)  # 10hz
         assitanceThreshold = rospy.get_param("/robotAsistanceParam")
         timeoutROS = rospy.get_param("/pathWaitParam")
 
@@ -304,11 +272,6 @@ if __name__ == '__main__':
 
         pubToDrive = rospy.Publisher("cmd_vel", Twist, queue_size=1)
 
-        # result = True
-        # prGreen("MASTER::THIS IS THE TEST AFTER SUBS")
-        # result = movebase_client()
-        # if result:
-        #     rospy.loginfo("Goal execution done!")
         rospy.spin()
     except rospy.ROSInterruptException:
         rospy.loginfo("Navigation test finished.")
