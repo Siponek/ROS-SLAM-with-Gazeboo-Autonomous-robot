@@ -1,4 +1,3 @@
-# Research Track 1 Assigment 3
 # Drunk and blind SLAM driving robot
 Università di Genova
 
