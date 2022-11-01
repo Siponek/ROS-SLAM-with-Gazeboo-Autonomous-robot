@@ -1,5 +1,5 @@
 # Drunk and blind SLAM driving robot
-Università di Genova
+Project during stay at Università di Genova
 
 ## Intro
 The third assignment of the Research Track 1 course. The goal is to have an robot that uses SLAM algorithm to move around the map in three diffrent modes.
